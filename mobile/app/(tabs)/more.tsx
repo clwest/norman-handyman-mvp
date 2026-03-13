@@ -5,9 +5,9 @@ import { clearToken } from "../../lib/api";
 import { colors } from "../../lib/colors";
 
 const menuItems = [
-  { icon: "document-text" as const, label: "Booking Requests", route: "/booking-requests" as const },
-  { icon: "cash" as const, label: "Expenses", route: null },
-  { icon: "cube" as const, label: "Supplies", route: null },
+  { icon: "document-text" as const, label: "Booking Requests", route: "/booking-requests" },
+  { icon: "cash" as const, label: "Expenses", route: "/(tabs)/expenses" },
+  { icon: "cube" as const, label: "Supplies", route: "/(tabs)/supplies" },
   { icon: "settings" as const, label: "Settings", route: null },
 ];
 

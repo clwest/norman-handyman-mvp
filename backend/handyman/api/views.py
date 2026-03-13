@@ -5,6 +5,12 @@ import logging
 
 import stripe
 from django.conf import settings
+from handyman.core.emails import (
+    send_booking_confirmation,
+    send_estimate_email,
+    send_invoice_email,
+    send_payment_confirmation,
+)
 from django.http import HttpResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -50,8 +56,8 @@ class BookingRequestPublicViewSet(viewsets.GenericViewSet):
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        # TODO: send confirmation email
+        booking = serializer.save()
+        send_booking_confirmation(booking)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -69,6 +75,62 @@ class InvoicePublicViewSet(viewsets.GenericViewSet):
             return Response({"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
         serializer = self.get_serializer(invoice)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def pay(self, request, pk=None):
+        """Public endpoint: create a Stripe Checkout session for an invoice."""
+        try:
+            invoice = self.get_queryset().get(pk=pk)
+        except Invoice.DoesNotExist:
+            return Response({"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if invoice.status == Invoice.Status.PAID:
+            return Response({"error": "Invoice already paid"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not settings.STRIPE_SECRET_KEY:
+            return Response({"error": "Stripe not configured"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+
+        line_items = []
+        for item in invoice.line_items or []:
+            line_items.append({
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": item.get("description", "Service")},
+                    "unit_amount": int(float(item.get("unit_price", 0)) * 100),
+                },
+                "quantity": item.get("qty", 1),
+            })
+        if invoice.tax_amount > 0:
+            line_items.append({
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": "Tax"},
+                    "unit_amount": int(invoice.tax_amount * 100),
+                },
+                "quantity": 1,
+            })
+
+        success_url = request.build_absolute_uri(f"/pay/{invoice.pk}?paid=1")
+        cancel_url = request.build_absolute_uri(f"/pay/{invoice.pk}")
+
+        try:
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=line_items,
+                mode="payment",
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={"invoice_id": str(invoice.pk)},
+            )
+        except stripe.error.StripeError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        invoice.stripe_checkout_session_id = session.id
+        invoice.save(update_fields=["stripe_checkout_session_id", "updated_at"])
+
+        return Response({"checkout_url": session.url})
 
 
 # ── Operator endpoints (auth required) ────────────────────────────────────
@@ -148,7 +210,7 @@ class EstimateViewSet(viewsets.ModelViewSet):
         estimate.status = Estimate.Status.SENT
         estimate.sent_at = timezone.now()
         estimate.save(update_fields=["status", "sent_at", "updated_at"])
-        # TODO: send email to customer
+        send_estimate_email(estimate)
         return Response(EstimateSerializer(estimate).data)
 
 
@@ -163,7 +225,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.status = Invoice.Status.SENT
         invoice.sent_at = timezone.now()
         invoice.save(update_fields=["status", "sent_at", "updated_at"])
-        # TODO: send email with payment link
+        send_invoice_email(invoice)
         return Response(InvoiceSerializer(invoice).data)
 
     @action(detail=True, methods=["post"])
@@ -285,6 +347,7 @@ def stripe_webhook(request):
                     update_fields=["status", "stripe_payment_intent_id", "paid_at", "updated_at"]
                 )
                 logger.info("Invoice %s marked PAID via Stripe webhook", invoice_id)
+                send_payment_confirmation(invoice)
             except Invoice.DoesNotExist:
                 logger.error("Invoice %s not found for Stripe webhook", invoice_id)
 

@@ -43,3 +43,15 @@ export async function getPublicInvoice(invoiceId: string): Promise<PublicInvoice
   }
   return res.json();
 }
+
+export async function createPublicCheckout(invoiceId: string): Promise<{ checkout_url: string }> {
+  const res = await fetch(`${API_BASE}/invoices/public/${invoiceId}/pay/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Payment failed (${res.status})`);
+  }
+  return res.json();
+}

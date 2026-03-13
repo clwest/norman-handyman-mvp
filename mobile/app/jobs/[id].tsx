@@ -129,8 +129,28 @@ export default function JobDetailScreen() {
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: colors.steel }]}
           onPress={() =>
-            Linking.openURL(`tel:`)
+            router.push({
+              pathname: "/estimates/create",
+              params: { jobId: job.id, customerId: job.customer, jobTitle: job.title },
+            })
           }
+        >
+          <Text style={styles.actionBtnText}>Create Estimate</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: colors.navy }]}
+          onPress={() =>
+            router.push({
+              pathname: "/invoices/create",
+              params: { jobId: job.id, customerId: job.customer, jobTitle: job.title },
+            })
+          }
+        >
+          <Text style={styles.actionBtnText}>Create Invoice</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: "#6B7280" }]}
+          onPress={() => Linking.openURL(`tel:`)}
         >
           <Text style={styles.actionBtnText}>Call Customer</Text>
         </TouchableOpacity>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { getPublicInvoice, type PublicInvoice } from "@/lib/api";
+import { getPublicInvoice, createPublicCheckout, type PublicInvoice } from "@/lib/api";
 
 export default function PayInvoicePage() {
   const params = useParams();
@@ -12,6 +12,7 @@ export default function PayInvoicePage() {
   const [invoice, setInvoice] = useState<PublicInvoice | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     getPublicInvoice(invoiceId)
@@ -134,10 +135,27 @@ export default function PayInvoicePage() {
           )}
 
           {!isPaid && (
-            <p className="text-center text-sm text-dark/50 mt-4">
-              A payment link will be sent to your email, or you can pay directly
-              when the operator sends you the checkout link.
-            </p>
+            <div className="mt-6">
+              <button
+                onClick={async () => {
+                  setPaying(true);
+                  try {
+                    const { checkout_url } = await createPublicCheckout(invoiceId);
+                    window.location.href = checkout_url;
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Payment failed");
+                    setPaying(false);
+                  }
+                }}
+                disabled={paying}
+                className="w-full bg-gold text-navy font-bold text-lg py-4 rounded-lg hover:brightness-110 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {paying ? "Redirecting to payment..." : `Pay $${parseFloat(invoice.total).toFixed(2)} Now`}
+              </button>
+              <p className="text-center text-sm text-dark/50 mt-3">
+                Secure payment powered by Stripe. You&apos;ll be redirected to complete payment.
+              </p>
+            </div>
           )}
         </div>
       </section>

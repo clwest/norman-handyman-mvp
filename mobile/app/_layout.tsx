@@ -22,6 +22,14 @@ export default function RootLayout() {
         name="booking-requests/[id]"
         options={{ title: "Booking Request" }}
       />
+      <Stack.Screen
+        name="estimates/create"
+        options={{ title: "Create Estimate" }}
+      />
+      <Stack.Screen
+        name="invoices/create"
+        options={{ title: "Create Invoice" }}
+      />
     </Stack>
   );
 }

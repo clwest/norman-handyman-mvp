@@ -50,6 +50,9 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Hidden from tab bar — accessed via More screen */}
+      <Tabs.Screen name="expenses" options={{ href: null, title: "Expenses" }} />
+      <Tabs.Screen name="supplies" options={{ href: null, title: "Supplies" }} />
     </Tabs>
   );
 }
