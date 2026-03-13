@@ -22,7 +22,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # Edit Stripe keys
 python manage.py migrate
-python manage.py createsuperuser
+python manage.py seed_demo    # Creates operator user + demo data
 python manage.py runserver
 
 # 3. Web (terminal 2)
