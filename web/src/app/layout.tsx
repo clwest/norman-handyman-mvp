@@ -9,9 +9,60 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: `${siteConfig.name} — ${siteConfig.tagline}`,
+  title: {
+    default: `${siteConfig.name} — ${siteConfig.tagline}`,
+    template: `%s | ${siteConfig.name}`,
+  },
   description:
     "On-time, respectful handyman and electrical services for Norman, Oklahoma homeowners. Clear estimates, quality workmanship, easy online payment.",
+  keywords: [
+    "handyman Norman OK",
+    "electrician Norman Oklahoma",
+    "home repair Norman",
+    "handyman services Norman",
+    "electrical repair Norman OK",
+  ],
+  openGraph: {
+    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    description:
+      "Premium handyman and electrical services for Norman, Oklahoma homeowners. Request an appointment online.",
+    type: "website",
+    locale: "en_US",
+    siteName: siteConfig.name,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "HomeAndConstructionBusiness",
+  name: siteConfig.name,
+  description: siteConfig.tagline,
+  telephone: siteConfig.phone,
+  email: siteConfig.email,
+  areaServed: {
+    "@type": "City",
+    name: "Norman",
+    addressRegion: "OK",
+    addressCountry: "US",
+  },
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Norman",
+    addressRegion: "OK",
+    addressCountry: "US",
+  },
+  openingHours: siteConfig.hours,
+  priceRange: "$$",
+  serviceType: [
+    "Handyman Services",
+    "Electrical Repair",
+    "Home Repair",
+    "Installation Services",
+  ],
 };
 
 export default function RootLayout({
@@ -21,6 +72,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className={`${inter.variable} antialiased`}>{children}</body>
     </html>
   );

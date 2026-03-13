@@ -18,6 +18,7 @@ from django.views.decorators.http import require_POST
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from handyman.core.models import (
     BookingRequest,
@@ -52,6 +53,8 @@ class BookingRequestPublicViewSet(viewsets.GenericViewSet):
 
     permission_classes = [permissions.AllowAny]
     serializer_class = BookingRequestPublicSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "booking"
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)

@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { getPublicInvoice, createPublicCheckout, type PublicInvoice } from "@/lib/api";
+import { siteConfig } from "@/lib/site-config";
 
 export default function PayInvoicePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const invoiceId = params.invoiceId as string;
+  const justPaid = searchParams.get("paid") === "1";
+
   const [invoice, setInvoice] = useState<PublicInvoice | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -25,7 +30,15 @@ export default function PayInvoicePage() {
     return (
       <>
         <Header />
-        <div className="py-20 text-center text-dark/50">Loading invoice...</div>
+        <section className="py-20">
+          <div className="max-w-xl mx-auto px-6 text-center">
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-gray-200 rounded w-48 mx-auto" />
+              <div className="h-4 bg-gray-200 rounded w-64 mx-auto" />
+              <div className="h-40 bg-gray-100 rounded-xl" />
+            </div>
+          </div>
+        </section>
         <Footer />
       </>
     );
@@ -35,10 +48,29 @@ export default function PayInvoicePage() {
     return (
       <>
         <Header />
-        <div className="py-20 text-center">
-          <h1 className="text-2xl font-bold text-navy mb-4">Invoice not found</h1>
-          <p className="text-dark/60">{error || "This invoice could not be loaded."}</p>
-        </div>
+        <section className="py-20">
+          <div className="max-w-xl mx-auto px-6 text-center">
+            <div className="text-5xl mb-4">&#128269;</div>
+            <h1 className="text-2xl font-bold text-navy mb-4">Invoice not found</h1>
+            <p className="text-dark/60 mb-6">
+              {error === "Invoice not found"
+                ? "This invoice doesn\u2019t exist or may have been removed."
+                : error || "This invoice could not be loaded. Please try again."}
+            </p>
+            <p className="text-sm text-dark/50 mb-8">
+              If you believe this is an error, please contact us at{" "}
+              <a href={`tel:${siteConfig.phone}`} className="text-steel font-medium">
+                {siteConfig.phone}
+              </a>
+            </p>
+            <Link
+              href="/"
+              className="inline-block text-steel font-semibold hover:underline"
+            >
+              &larr; Back to home
+            </Link>
+          </div>
+        </section>
         <Footer />
       </>
     );
@@ -55,6 +87,19 @@ export default function PayInvoicePage() {
 
       <section className="py-16">
         <div className="max-w-xl mx-auto px-6">
+          {/* Payment success banner (returned from Stripe) */}
+          {justPaid && !isPaid && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center mb-6">
+              <h2 className="text-lg font-semibold text-blue-800 mb-1">
+                Payment processing
+              </h2>
+              <p className="text-blue-700 text-sm">
+                Your payment is being confirmed. This page will update shortly.
+                Refresh in a moment if the status doesn&apos;t change.
+              </p>
+            </div>
+          )}
+
           {isPaid ? (
             <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center mb-8">
               <div className="text-green-600 text-4xl mb-2">&#10003;</div>
@@ -62,7 +107,7 @@ export default function PayInvoicePage() {
                 Invoice Paid
               </h1>
               <p className="text-green-700 mt-1">
-                Thank you for your payment.
+                Thank you for your payment. A confirmation has been sent to your email.
               </p>
             </div>
           ) : (
@@ -134,16 +179,26 @@ export default function PayInvoicePage() {
             </p>
           )}
 
-          {!isPaid && (
+          {!isPaid && !justPaid && (
             <div className="mt-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4 text-sm">
+                  {error}
+                </div>
+              )}
               <button
                 onClick={async () => {
                   setPaying(true);
+                  setError("");
                   try {
                     const { checkout_url } = await createPublicCheckout(invoiceId);
                     window.location.href = checkout_url;
                   } catch (err) {
-                    setError(err instanceof Error ? err.message : "Payment failed");
+                    setError(
+                      err instanceof Error
+                        ? err.message
+                        : "Unable to start payment. Please try again or contact us."
+                    );
                     setPaying(false);
                   }
                 }}
