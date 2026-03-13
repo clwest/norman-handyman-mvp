@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# Django
+*.sqlite3
+db.sqlite3
+staticfiles/
+media/
+
+# Node
+node_modules/
+.next/
+out/
+.expo/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+backend/.env
+web/.env
+web/.env.local
+mobile/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Stripe CLI
+.stripe/
+
+# Docker
+postgres_data/

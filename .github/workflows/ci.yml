@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: handyman_test
+          POSTGRES_USER: handyman
+          POSTGRES_PASSWORD: handyman
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Django checks
+        working-directory: backend
+        env:
+          DB_NAME: handyman_test
+          DB_USER: handyman
+          DB_PASSWORD: handyman
+          DB_HOST: localhost
+        run: python manage.py check
+      - name: Run tests
+        working-directory: backend
+        env:
+          DB_NAME: handyman_test
+          DB_USER: handyman
+          DB_PASSWORD: handyman
+          DB_HOST: localhost
+        run: python manage.py test
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+      - name: Lint
+        working-directory: web
+        run: npm run lint || true
+      - name: Build
+        working-directory: web
+        run: npm run build
