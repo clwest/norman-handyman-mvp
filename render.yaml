@@ -1,0 +1,47 @@
+# Render blueprint — JobFlow backend (Django) on the free tier.
+# Free Web Service: 512MB RAM, sleeps after 15 min, cold start ~30-50s.
+# Requires a DATABASE_URL pointing at a Neon free Postgres (or any
+# Postgres). Connect that as an env var when you activate the Blueprint.
+
+services:
+  - type: web
+    name: job-flow-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    region: oregon
+    autoDeploy: true
+
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate --noinput
+
+    startCommand: |
+      gunicorn handyman.wsgi:application \
+        --bind 0.0.0.0:$PORT \
+        --workers 2 \
+        --timeout 60 \
+        --access-logfile - \
+        --error-logfile -
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "job-flow-api.onrender.com"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://job-flow.vercel.app,https://24-7-ai-global.vercel.app"
+      # Connect a Neon (or Render) Postgres instance via DATABASE_URL.
+      # Format: postgres://user:pass@host:port/db
+      - key: DATABASE_URL
+        sync: false
+      # Stripe stays unset — backend returns 503 "Stripe not configured"
+      # on checkout endpoints, which the web UI treats as demo mode.
+      - key: STRIPE_SECRET_KEY
+        sync: false
