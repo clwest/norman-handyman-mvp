@@ -248,7 +248,7 @@ def _core_model_count() -> ClaimResult:
     models_path = BACKEND_ROOT / "handyman" / "core" / "models.py"
     if not models_path.is_file():
         return ClaimResult.build(
-            expected=7, actual=None, severity='error',
+            expected=8, actual=None, severity='error',
             note=f"models.py not found at {models_path}",
         )
     tree = ast.parse(models_path.read_text(encoding="utf-8"))
@@ -268,7 +268,7 @@ def _core_model_count() -> ClaimResult:
                     model_names.append(node.name)
                     break
     actual = len(model_names)
-    expected = 7  # backend/handyman/core/models.py: Customer, BookingRequest, Job, Estimate, Invoice, Expense, SupplyItem
+    expected = 8  # backend/handyman/core/models.py: Customer, BookingRequest, Job, JobPhoto, Estimate, Invoice, Expense, SupplyItem
     return ClaimResult.build(
         expected=expected, actual=actual,
         severity='ok' if expected == actual else 'medium',
