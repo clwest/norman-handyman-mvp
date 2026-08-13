@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { siteConfig } from "@/lib/site-config";
 
 export default function Footer() {
@@ -18,9 +19,9 @@ export default function Footer() {
         <div>
           <h4 className="font-semibold text-white mb-2">Quick Links</h4>
           <ul className="space-y-1">
-            <li><a href="/book" className="hover:text-gold transition-colors">Request Appointment</a></li>
-            <li><a href="/#services" className="hover:text-gold transition-colors">Services</a></li>
-            <li><a href="/#faq" className="hover:text-gold transition-colors">FAQ</a></li>
+            <li><Link href="/book" className="hover:text-gold transition-colors">Request Appointment</Link></li>
+            <li><Link href="/#services" className="hover:text-gold transition-colors">Services</Link></li>
+            <li><Link href="/#faq" className="hover:text-gold transition-colors">FAQ</Link></li>
           </ul>
         </div>
       </div>
