@@ -173,6 +173,38 @@ class Invoice(models.Model):
         self.total = subtotal + self.tax_amount
 
 
+def job_photo_upload_path(instance, filename):
+    from pathlib import PurePosixPath
+    from uuid import uuid4
+
+    ext = PurePosixPath(filename).suffix.lower()
+    if ext not in {".jpg", ".jpeg", ".png", ".webp", ".heic"}:
+        ext = ".jpg"
+    return f"job_photos/{instance.job_id}/{uuid4().hex}{ext}"
+
+
+class JobPhoto(models.Model):
+    """A photo attached to a Job — uploaded by an operator from the mobile app."""
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField(upload_to=job_photo_upload_path)
+    caption = models.CharField(max_length=200, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="job_photos",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"Photo for Job #{self.job_id} ({self.uploaded_at:%Y-%m-%d})"
+
+
 class Expense(models.Model):
     """Operator expense tracking."""
 

@@ -87,6 +87,47 @@ export const markInvoicePaid = (id: number) =>
 export const createCheckout = (id: number) =>
   authFetch(`/invoices/${id}/create_checkout/`, { method: "POST" });
 
+// Job photos
+export interface JobPhoto {
+  id: number;
+  job: number;
+  image_url: string | null;
+  caption: string;
+  uploaded_at: string;
+  uploaded_by: number | null;
+}
+
+export const getJobPhotos = (jobId: number): Promise<JobPhoto[]> =>
+  authFetch(`/jobs/${jobId}/photos/`);
+
+export async function uploadJobPhoto(
+  jobId: number,
+  file: { uri: string; mimeType?: string | null; fileName?: string | null },
+  caption = "",
+): Promise<JobPhoto> {
+  const token = await getToken();
+  const form = new FormData();
+  const mimeType = file.mimeType || "image/jpeg";
+  const name = file.fileName || `upload.${mimeType.split("/")[1] || "jpg"}`;
+  // React Native FormData accepts { uri, name, type } — server ignores client
+  // filename in favor of a UUID-based server path.
+  form.append("image", { uri: file.uri, name, type: mimeType } as unknown as Blob);
+  if (caption) form.append("caption", caption);
+
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/photos/`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Token ${token}` } : {}),
+    },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Upload failed (${res.status}): ${body.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
 // Estimates
 export const getEstimates = () => authFetch("/estimates/");
 export const createEstimate = (data: Record<string, unknown>) =>

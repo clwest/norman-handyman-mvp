@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,18 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getJob, startJob, completeJob } from "../../lib/api";
+import * as ImagePicker from "expo-image-picker";
+import {
+  getJob,
+  startJob,
+  completeJob,
+  getJobPhotos,
+  uploadJobPhoto,
+  type JobPhoto,
+} from "../../lib/api";
 import { colors } from "../../lib/colors";
 
 interface JobDetail {
@@ -29,15 +38,72 @@ interface JobDetail {
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const jobId = Number(id);
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [photos, setPhotos] = useState<JobPhoto[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const loadPhotos = useCallback(async () => {
+    try {
+      setPhotos(await getJobPhotos(jobId));
+    } catch {
+      // non-fatal; job detail still usable without photos
+    }
+  }, [jobId]);
 
   useEffect(() => {
-    getJob(Number(id))
+    getJob(jobId)
       .then(setJob)
       .catch(() => Alert.alert("Error", "Failed to load job"))
       .finally(() => setLoading(false));
-  }, [id]);
+    loadPhotos();
+  }, [jobId, loadPhotos]);
+
+  async function pickAndUpload(source: "camera" | "library") {
+    const permission =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission needed",
+        source === "camera"
+          ? "Enable camera access in Settings to take job photos."
+          : "Enable photo library access in Settings to attach photos.",
+      );
+      return;
+    }
+
+    const result =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 0.7 });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    setUploading(true);
+    try {
+      const created = await uploadJobPhoto(jobId, {
+        uri: asset.uri,
+        mimeType: asset.mimeType,
+        fileName: asset.fileName,
+      });
+      setPhotos((prev) => [created, ...prev]);
+    } catch (e) {
+      Alert.alert("Upload failed", e instanceof Error ? e.message : "Try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function addPhoto() {
+    Alert.alert("Add Photo", "Choose a source", [
+      { text: "Camera", onPress: () => pickAndUpload("camera") },
+      { text: "Photo Library", onPress: () => pickAndUpload("library") },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
 
   async function handleStart() {
     try {
@@ -110,6 +176,34 @@ export default function JobDetailScreen() {
           <Text style={styles.value}>{job.notes}</Text>
         </View>
       ) : null}
+
+      <View style={styles.section}>
+        <View style={styles.photosHeader}>
+          <Text style={styles.label}>Photos ({photos.length})</Text>
+          <TouchableOpacity
+            style={styles.addPhotoBtn}
+            onPress={addPhoto}
+            disabled={uploading}
+          >
+            <Text style={styles.addPhotoBtnText}>
+              {uploading ? "Uploading…" : "+ Add Photo"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {photos.length === 0 ? (
+          <Text style={styles.emptyPhotos}>No photos yet.</Text>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
+            {photos.map((p) => (
+              <View key={p.id} style={styles.photoTile}>
+                {p.image_url ? (
+                  <Image source={{ uri: p.image_url }} style={styles.photoImage} />
+                ) : null}
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
 
       {/* Actions */}
       <View style={styles.actions}>
@@ -189,6 +283,25 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 12, color: "#999", textTransform: "uppercase", marginBottom: 4 },
   value: { fontSize: 16, color: colors.dark },
+  photosHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  addPhotoBtn: {
+    backgroundColor: colors.steel,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  addPhotoBtnText: { color: colors.white, fontWeight: "600", fontSize: 13 },
+  emptyPhotos: { marginTop: 12, color: "#999", fontSize: 14 },
+  photoStrip: { marginTop: 12 },
+  photoTile: {
+    width: 96,
+    height: 96,
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: colors.lightGray,
+    overflow: "hidden",
+  },
+  photoImage: { width: "100%", height: "100%" },
   actions: { padding: 16, gap: 10 },
   actionBtn: {
     backgroundColor: colors.gold,

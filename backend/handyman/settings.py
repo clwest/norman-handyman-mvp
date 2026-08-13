@@ -79,6 +79,15 @@ DATABASES = {
     }
 }
 
+# Local escape hatch for running the test suite without Postgres.
+if os.environ.get("USE_SQLITE") == "1":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test.sqlite3",
+        }
+    }
+
 # Allow DATABASE_URL to override individual settings
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
@@ -109,6 +118,9 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
@@ -116,6 +128,11 @@ STORAGES = {
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Upload limits (jobs photos etc.)
+MAX_UPLOAD_SIZE_BYTES = int(os.environ.get("MAX_UPLOAD_SIZE_BYTES", 10 * 1024 * 1024))  # 10 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE_BYTES
+FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE_BYTES
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

@@ -17,6 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
@@ -27,6 +28,7 @@ from handyman.core.models import (
     Expense,
     Invoice,
     Job,
+    JobPhoto,
     SupplyItem,
 )
 
@@ -38,9 +40,18 @@ from .serializers import (
     ExpenseSerializer,
     InvoicePublicSerializer,
     InvoiceSerializer,
+    JobPhotoSerializer,
     JobSerializer,
     SupplyItemSerializer,
 )
+
+ALLOWED_IMAGE_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +211,50 @@ class JobViewSet(viewsets.ModelViewSet):
         job.completed_at = timezone.now()
         job.save(update_fields=["status", "completed_at", "updated_at"])
         return Response(JobSerializer(job).data)
+
+    @action(
+        detail=True,
+        methods=["get", "post"],
+        url_path="photos",
+        parser_classes=[MultiPartParser, FormParser, JSONParser],
+    )
+    def photos(self, request, pk=None):
+        job = self.get_object()
+
+        if request.method == "GET":
+            qs = job.photos.all()
+            data = JobPhotoSerializer(qs, many=True, context={"request": request}).data
+            return Response(data)
+
+        upload = request.FILES.get("image")
+        if not upload:
+            return Response(
+                {"error": "No image file provided (field name: 'image')."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        content_type = (getattr(upload, "content_type", "") or "").lower()
+        if content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+            return Response(
+                {"error": f"Unsupported content type: {content_type or 'unknown'}"},
+                status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            )
+
+        max_bytes = settings.MAX_UPLOAD_SIZE_BYTES
+        if upload.size and upload.size > max_bytes:
+            return Response(
+                {"error": f"File too large. Max {max_bytes} bytes."},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+
+        photo = JobPhoto.objects.create(
+            job=job,
+            image=upload,
+            caption=request.data.get("caption", "")[:200],
+            uploaded_by=request.user if request.user.is_authenticated else None,
+        )
+        serializer = JobPhotoSerializer(photo, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class EstimateViewSet(viewsets.ModelViewSet):

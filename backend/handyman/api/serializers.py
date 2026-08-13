@@ -7,6 +7,7 @@ from handyman.core.models import (
     Expense,
     Invoice,
     Job,
+    JobPhoto,
     SupplyItem,
 )
 
@@ -125,6 +126,23 @@ class ExpenseSerializer(serializers.ModelSerializer):
         model = Expense
         fields = "__all__"
         read_only_fields = ("created_at", "updated_at")
+
+
+class JobPhotoSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = JobPhoto
+        fields = ("id", "job", "image", "image_url", "caption", "uploaded_at", "uploaded_by")
+        read_only_fields = ("id", "uploaded_at", "uploaded_by", "image_url")
+        extra_kwargs = {"image": {"write_only": True}}
+
+    def get_image_url(self, obj) -> str | None:
+        if not obj.image:
+            return None
+        request = self.context.get("request")
+        url = obj.image.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class SupplyItemSerializer(serializers.ModelSerializer):
